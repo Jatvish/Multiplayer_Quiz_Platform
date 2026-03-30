@@ -96,6 +96,9 @@ cd frontend
 
 # Install dependencies
 npm install
+
+# Copy environment file
+cp .env.example .env
 ```
 
 ---
