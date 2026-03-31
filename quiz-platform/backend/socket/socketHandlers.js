@@ -50,7 +50,7 @@ module.exports = (io, socket) => {
       if (rooms.length === 0) return socket.emit('error', { message: 'Room not found' });
 
       const room = rooms[0];
-      if (room.host_id !== userId) return socket.emit('error', { message: 'Only host can start the quiz' });
+      if (Number(room.host_id) !== Number(userId)) return socket.emit('error', { message: 'Only host can start the quiz' });
 
       const roomId = room.id;
       await db.pool.query('UPDATE rooms SET status = "active" WHERE id = ?', [roomId]);

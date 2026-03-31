@@ -193,8 +193,8 @@ function QuizRoom({ user }) {
               <div key={participant.user_id} className="participant">
                 <span>
                   {participant.username}
-                  {participant.user_id === user.id && ' (You)'}
-                  {participant.user_id === roomInfo?.hostId && ' (Host)'}
+                  {Number(participant.user_id) === Number(user.id) && ' (You)'}
+                  {Number(participant.user_id) === Number(roomInfo?.hostId) && ' (Host)'}
                 </span>
               </div>
             ))}
