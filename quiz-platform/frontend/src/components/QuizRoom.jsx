@@ -175,13 +175,14 @@ function QuizRoom({ user }) {
 
         {gameState === 'waiting' && !currentQuestion && (
           <div className="text-center">
-            <h3>Waiting for game to start...</h3>
-            {isHost && participants.length > 0 && (
+            <h3>Waiting for players...</h3>
+            {isHost ? (
               <button onClick={handleStartQuiz} className="btn btn-primary mt-1">
                 🚀 Start Quiz
               </button>
+            ) : (
+              <p>Waiting for host to start the quiz</p>
             )}
-            {!isHost && <p>Waiting for host to start the quiz</p>}
           </div>
         )}
 

@@ -109,7 +109,7 @@ router.post('/join', auth, async (req, res) => {
         data: {
           roomId: room.id,
           roomCode: room.code,
-          isHost: room.host_id === req.userId,
+          isHost: Number(room.host_id) === Number(req.userId),
           message: 'Already in room'
         }
       });
@@ -120,7 +120,7 @@ router.post('/join', auth, async (req, res) => {
       data: {
         roomId: room.id,
         roomCode: room.code,
-        isHost: room.host_id === req.userId
+        isHost: Number(room.host_id) === Number(req.userId)
       }
     });
 
@@ -167,7 +167,7 @@ router.get('/:roomCode', auth, async (req, res) => {
       data: {
         room,
         participants,
-        isHost: room.host_id === req.userId
+        isHost: Number(room.host_id) === Number(req.userId)
       }
     });
 

@@ -33,7 +33,7 @@ module.exports = (io, socket) => {
       io.to(roomCode).emit('user_joined', { userId, username, participants });
       socket.emit('room_joined', {
         roomId, roomCode, participants,
-        isHost: room.host_id === userId,
+        isHost: Number(room.host_id) === Number(userId),
         hostId: room.host_id,
         roomStatus: room.status
       });
