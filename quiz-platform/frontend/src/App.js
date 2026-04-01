@@ -10,7 +10,6 @@ import { QuizProvider } from './context/QuizContext';
 import api from './services/api';
 import './App.css';
 
-
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -20,9 +19,7 @@ function App() {
     if (token) {
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       const userData = localStorage.getItem('user');
-      if (userData) {
-        setUser(JSON.parse(userData));
-      }
+      if (userData) setUser(JSON.parse(userData));
     }
     setLoading(false);
   }, []);
@@ -44,7 +41,7 @@ function App() {
   if (loading) {
     return (
       <div className="loading-screen">
-        <div className="spinner"></div>
+        <div className="spinner" />
         <p>Loading...</p>
       </div>
     );
@@ -54,15 +51,26 @@ function App() {
     <QuizProvider>
       <Router>
         <div className="App">
+          {/* Animated background orbs */}
+          <div className="bg-scene" aria-hidden="true">
+            <div className="orb orb-1" />
+            <div className="orb orb-2" />
+            <div className="orb orb-3" />
+          </div>
+
           <header className="app-header">
             <div className="header-content">
-              <h1>🧠 Quiz Platform</h1>
+              <div className="header-logo">
+                <span className="logo-emoji">🧠</span>
+                Quiz Mania
+              </div>
               {user && (
                 <div className="user-info">
-                  <span>Welcome, {user.username}!</span>
-                  <button onClick={handleLogout} className="logout-btn">
-                    Logout
-                  </button>
+                  <div className="user-avatar">
+                    {user.username[0].toUpperCase()}
+                  </div>
+                  <span className="user-name">{user.username}</span>
+                  <button onClick={handleLogout} className="logout-btn">Logout</button>
                 </div>
               )}
             </div>
@@ -70,30 +78,12 @@ function App() {
 
           <main className="app-main">
             <Routes>
-              <Route 
-                path="/" 
-                element={user ? <Home user={user} /> : <Navigate to="/login" />} 
-              />
-              <Route 
-                path="/login" 
-                element={user ? <Navigate to="/" /> : <Login onLogin={handleLogin} />} 
-              />
-              <Route 
-                path="/register" 
-                element={user ? <Navigate to="/" /> : <Register onLogin={handleLogin} />} 
-              />
-              <Route 
-                path="/create-room" 
-                element={user ? <CreateRoom user={user} /> : <Navigate to="/login" />} 
-              />
-              <Route 
-                path="/join-room" 
-                element={user ? <JoinRoom user={user} /> : <Navigate to="/login" />} 
-              />
-              <Route 
-                path="/room/:roomCode" 
-                element={user ? <QuizRoom user={user} /> : <Navigate to="/login" />} 
-              />
+              <Route path="/"             element={user ? <Home user={user} />            : <Navigate to="/login" />} />
+              <Route path="/login"        element={user ? <Navigate to="/" />             : <Login onLogin={handleLogin} />} />
+              <Route path="/register"     element={user ? <Navigate to="/" />             : <Register onLogin={handleLogin} />} />
+              <Route path="/create-room"  element={user ? <CreateRoom user={user} />      : <Navigate to="/login" />} />
+              <Route path="/join-room"    element={user ? <JoinRoom user={user} />        : <Navigate to="/login" />} />
+              <Route path="/room/:roomCode" element={user ? <QuizRoom user={user} />      : <Navigate to="/login" />} />
             </Routes>
           </main>
         </div>

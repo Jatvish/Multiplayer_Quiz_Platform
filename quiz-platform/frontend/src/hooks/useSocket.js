@@ -13,8 +13,7 @@ export const useSocket = () => {
 
     const newSocket = io(SOCKET_URL, {
       auth: { token },
-      transports: ['websocket'],
-      withCredentials: true, // IMPORTANT for CORS + auth cookie
+      withCredentials: true,
     });
 
     newSocket.on('connect', () => {

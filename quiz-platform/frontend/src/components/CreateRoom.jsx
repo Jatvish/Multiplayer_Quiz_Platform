@@ -1,6 +1,4 @@
-// src/components/CreateRoom.jsx
-
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import SettingsModal from './SettingsModal';
@@ -9,29 +7,21 @@ function CreateRoom({ user }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showSettings, setShowSettings] = useState(false);
-  // const [timePerQuestion, setTimePerQuestion] = useState(10); // default 10 seconds
-
   const [questionCount, setQuestionCount] = useState(5);
   const [difficulties, setDifficulties] = useState(['easy', 'medium', 'hard']);
   const [categories, setCategories] = useState(['Geography', 'Science', 'Math']);
-
   const [tempSettings, setTempSettings] = useState({});
-
   const navigate = useNavigate();
 
   const handleCreateRoom = async () => {
     setLoading(true);
     setError('');
     try {
-      const response = await api.post('/rooms/create', {
-        questionCount,
-        difficulties,
-        categories
-      });
+      const response = await api.post('/rooms/create', { questionCount, difficulties, categories });
       const { roomCode } = response.data.data;
-      navigate(`/room/${roomCode}`);
-    } catch (error) {
-      setError(error.response?.data?.message || 'Failed to create room');
+      setTimeout(() => navigate(`/room/${roomCode}`), 200);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to create room');
     } finally {
       setLoading(false);
     }
@@ -41,12 +31,8 @@ function CreateRoom({ user }) {
     setTempSettings({ questionCount, difficulties: [...difficulties], categories: [...categories] });
     setShowSettings(true);
   };
-
-  const handleSaveSettings = () => {
-    setShowSettings(false);
-  };
-
-  const handleCancelSettings = () => {
+  const handleSave = () => setShowSettings(false);
+  const handleCancel = () => {
     setQuestionCount(tempSettings.questionCount);
     setDifficulties(tempSettings.difficulties);
     setCategories(tempSettings.categories);
@@ -54,47 +40,52 @@ function CreateRoom({ user }) {
   };
 
   return (
-    <div className="container">
-      <div className="text-center mb-2">
-        <h2>🎮 Create Quiz Room</h2>
-        <p>Create a new quiz room and invite your friends!</p>
-      </div>
+    <div className="room-page">
+      <div className="room-card">
+        <h2 className="room-card-title">🎮 Create Room</h2>
+        <p className="room-card-subtitle">Set up your quiz battle arena</p>
 
-      {error && <div className="error-message">{error}</div>}
+        {error && <div className="error-message">⚠ {error}</div>}
 
-      <div style={{
-        background: '#f8f9fa',
-        padding: '2rem',
-        borderRadius: '8px',
-        textAlign: 'center',
-        marginBottom: '2rem'
-      }}>
-        <h3>Room Settings</h3>
-        <p><strong>Host:</strong> {user.username}</p>
-        <p><strong>Questions:</strong> {questionCount}</p>
-        <p><strong>Difficulties:</strong> {difficulties.join(', ')}</p>
-        <p><strong>Categories:</strong> {categories.join(', ')}</p>
-        <button className="btn btn-outline-primary mt-2" onClick={openSettings}>⚙️ Edit Settings</button>
-      </div>
+        <div className="settings-preview">
+          <div className="settings-row">
+            <span className="settings-row-label">Host</span>
+            <span className="settings-row-value">{user.username}</span>
+          </div>
+          <div className="settings-row">
+            <span className="settings-row-label">Questions</span>
+            <span className="settings-row-value">{questionCount}</span>
+          </div>
+          <div className="settings-row">
+            <span className="settings-row-label">Difficulty</span>
+            <span className="settings-row-value">{difficulties.join(', ')}</span>
+          </div>
+          <div className="settings-row">
+            <span className="settings-row-label">Categories</span>
+            <span className="settings-row-value">{categories.join(', ')}</span>
+          </div>
+        </div>
 
-      <button className="btn btn-primary btn-full" onClick={handleCreateRoom} disabled={loading}>
-        {loading ? 'Creating Room...' : '🚀 Create Room'}
-      </button>
+        <button className="btn btn-secondary btn-full mb-1" onClick={openSettings}>
+          ⚙️ Customize Settings
+        </button>
 
-      <div className="text-center mt-2">
-        <button onClick={() => navigate('/')} className="btn btn-secondary">← Back to Home</button>
+        <button className="btn btn-primary btn-full btn-lg btn-glow"
+          onClick={handleCreateRoom} disabled={loading}>
+          {loading ? 'Creating...' : '🚀 Create Room'}
+        </button>
+
+        <button onClick={() => navigate('/')} className="btn btn-ghost btn-full mt-1">
+          ← Back to Home
+        </button>
       </div>
 
       {showSettings && (
         <SettingsModal
-          questionCount={questionCount}
-          setQuestionCount={setQuestionCount}
-          difficulties={difficulties}
-          setDifficulties={setDifficulties}
-          categories={categories}
-          setCategories={setCategories}
-          onSave={handleSaveSettings}
-          onCancel={handleCancelSettings}
+          questionCount={questionCount} setQuestionCount={setQuestionCount}
+          difficulties={difficulties}   setDifficulties={setDifficulties}
+          categories={categories}       setCategories={setCategories}
+          onSave={handleSave}           onCancel={handleCancel}
         />
       )}
     </div>
