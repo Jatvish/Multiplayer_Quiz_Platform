@@ -49,6 +49,9 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
+// Health check (used by UptimeRobot to keep Render awake)
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/quiz', quizRoutes);
@@ -75,13 +78,40 @@ app.use((err, req, res, next) => {
 
 // Start server
 const PORT = process.env.PORT || 5000;
+
+async function startServer() {
+  let retries = 0;
+  const maxRetries = 30;
+  const retryDelay = 1000; // 1 second
+
+  while (retries < maxRetries) {
+    try {
+      console.log(`🔁 Testing DB connection (attempt ${retries + 1}/${maxRetries})...`);
+      const connected = await testConnection();
+      
+      if (connected) {
+        console.log("🔧 Initializing DB schema...");
+        await initializeDatabase();
+        console.log('✅ Database initialized successfully');
+        break;
+      }
+    } catch (err) {
+      console.error(`Connection attempt ${retries + 1} failed:`, err.message);
+    }
+    
+    retries++;
+    if (retries < maxRetries) {
+      console.log(`⏳ Retrying in ${retryDelay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
+  }
+
+  if (retries === maxRetries) {
+    console.error('❌ Failed to connect to database after maximum retries');
+  }
+}
+
 server.listen(PORT, async () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log("🔁 Testing DB connection...");
-  await testConnection();
-
-  console.log("🔧 Initializing DB schema...");
-  await initializeDatabase();
-  // Initialize database connection
-  console.log('✅ Database initialized successfully');
+  await startServer();
 });

@@ -1,15 +1,12 @@
 const express = require('express');
-const db = require('../config/database');
+const { pool } = require('../config/database');
 const auth = require('../middleware/auth');
 const router = express.Router();
 
-// Generate random room code
 function generateRoomCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let result = '';
-  for (let i = 0; i < 6; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
+  for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
   return result;
 }
 
@@ -20,45 +17,29 @@ router.post('/create', auth, async (req, res) => {
 
     let roomCode;
     let isUnique = false;
-
-    // Generate unique room code
     while (!isUnique) {
       roomCode = generateRoomCode();
-      const [existingRooms] = await db.pool.query(
-        'SELECT * FROM rooms WHERE code = ?',
-        [roomCode]
-      );
-      if (existingRooms.length === 0) isUnique = true;
+      const existing = await pool.query('SELECT id FROM rooms WHERE code = $1', [roomCode]);
+      if (existing.rows.length === 0) isUnique = true;
     }
 
-    // Save the selected settings into the DB
-    const [result] = await db.pool.query(
+    const result = await pool.query(
       `INSERT INTO rooms (code, host_id, question_count, difficulties, categories)
-       VALUES (?, ?, ?, ?, ?)`,
-      [
-        roomCode,
-        req.userId,
-        questionCount,
-        difficulties.join(','),     // Store as comma-separated string
-        categories.join(',')
-      ]
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [roomCode, req.userId, questionCount, difficulties.join(','), categories.join(',')]
     );
 
-    res.status(201).json({
-      status: 'success',
-      data: {
-        roomId: result.insertId,
-        roomCode,
-        hostId: req.userId
-      }
-    });
+    const roomId = result.rows[0].id;
+    await pool.query(
+      'INSERT INTO room_participants (room_id, user_id, status) VALUES ($1, $2, $3)',
+      [roomId, req.userId, 'active']
+    );
 
+    console.log(`✅ Room created: ${roomCode} (ID: ${roomId}) with host ${req.userId}`);
+    res.status(201).json({ status: 'success', data: { roomId, roomCode, hostId: req.userId } });
   } catch (error) {
     console.error('Create room error:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Failed to create room'
-    });
+    res.status(500).json({ status: 'error', message: 'Failed to create room' });
   }
 });
 
@@ -66,70 +47,29 @@ router.post('/create', auth, async (req, res) => {
 router.post('/join', auth, async (req, res) => {
   try {
     const { roomCode } = req.body;
+    if (!roomCode) return res.status(400).json({ status: 'error', message: 'Room code is required' });
 
-    if (!roomCode) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Room code is required'
-      });
-    }
+    const roomResult = await pool.query('SELECT * FROM rooms WHERE code = $1', [roomCode]);
+    if (roomResult.rows.length === 0)
+      return res.status(404).json({ status: 'error', message: 'Room not found' });
 
-    // Find room
-    const [rooms] = await db.pool.query(
-      'SELECT * FROM rooms WHERE code = ?',
-      [roomCode]
-    );
+    const room = roomResult.rows[0];
+    if (room.status === 'completed')
+      return res.status(400).json({ status: 'error', message: 'This quiz has already ended' });
 
-    if (rooms.length === 0) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Room not found'
-      });
-    }
-
-    const room = rooms[0];
-
-    // Check if room is still open
-    if (room.status === 'completed') {
-      return res.status(400).json({
-        status: 'error',
-        message: 'This quiz has already ended'
-      });
-    }
-
-    // Check if user is already in the room
-    const [participants] = await db.pool.query(
-      'SELECT * FROM room_participants WHERE room_id = ? AND user_id = ?',
+    const participantResult = await pool.query(
+      'SELECT * FROM room_participants WHERE room_id = $1 AND user_id = $2',
       [room.id, req.userId]
     );
 
-    if (participants.length > 0 && participants[0].status === 'active') {
-      return res.json({
-        status: 'success',
-        data: {
-          roomId: room.id,
-          roomCode: room.code,
-          isHost: room.host_id === req.userId,
-          message: 'Already in room'
-        }
-      });
+    if (participantResult.rows.length > 0 && participantResult.rows[0].status === 'active') {
+      return res.json({ status: 'success', data: { roomId: room.id, roomCode: room.code, isHost: Number(room.host_id) === Number(req.userId), message: 'Already in room' } });
     }
 
-    res.json({
-      status: 'success',
-      data: {
-        roomId: room.id,
-        roomCode: room.code,
-        isHost: room.host_id === req.userId
-      }
-    });
-
+    res.json({ status: 'success', data: { roomId: room.id, roomCode: room.code, isHost: Number(room.host_id) === Number(req.userId) } });
   } catch (error) {
     console.error('Join room error:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Failed to join room'
-    });
+    res.status(500).json({ status: 'error', message: 'Failed to join room' });
   }
 });
 
@@ -137,46 +77,22 @@ router.post('/join', auth, async (req, res) => {
 router.get('/:roomCode', auth, async (req, res) => {
   try {
     const { roomCode } = req.params;
+    const roomResult = await pool.query('SELECT * FROM rooms WHERE code = $1', [roomCode]);
+    if (roomResult.rows.length === 0)
+      return res.status(404).json({ status: 'error', message: 'Room not found' });
 
-    // Get room info
-    const [rooms] = await db.pool.query(
-      'SELECT * FROM rooms WHERE code = ?',
-      [roomCode]
-    );
-
-    if (rooms.length === 0) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Room not found'
-      });
-    }
-
-    const room = rooms[0];
-
-    // Get participants
-    const [participants] = await db.pool.query(
-      `SELECT rp.*, u.username 
-       FROM room_participants rp 
-       JOIN users u ON rp.user_id = u.id 
-       WHERE rp.room_id = ? AND rp.status = 'active'`,
+    const room = roomResult.rows[0];
+    const participants = await pool.query(
+      `SELECT rp.*, u.username FROM room_participants rp
+       JOIN users u ON rp.user_id = u.id
+       WHERE rp.room_id = $1 AND rp.status = 'active'`,
       [room.id]
     );
 
-    res.json({
-      status: 'success',
-      data: {
-        room,
-        participants,
-        isHost: room.host_id === req.userId
-      }
-    });
-
+    res.json({ status: 'success', data: { room, participants: participants.rows, isHost: Number(room.host_id) === Number(req.userId) } });
   } catch (error) {
     console.error('Get room error:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Failed to get room info'
-    });
+    res.status(500).json({ status: 'error', message: 'Failed to get room info' });
   }
 });
 
